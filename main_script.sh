@@ -19,6 +19,8 @@ module load GCC/12.3.0
 module load SAMtools/1.18-GCC-12.3.0
 module load pod5-file-format/0.3.10-foss-2023a
 module load minimap2/2.26-GCCcore-12.3.0
+module load R
+module load Pandoc/2.13
 
 export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/dorado-0.8.2-linux-x64/bin:${PATH} # Add path to your Dorado installation
 export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/miniforge3/envs/pycoqc_env/bin:${PATH} # Add path to your pycoQC installation
