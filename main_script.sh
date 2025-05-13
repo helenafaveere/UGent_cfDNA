@@ -193,7 +193,14 @@ do
     samtools view "basecalling/simplex_mapped_barcode${sample_num}.bam" | awk '{print length($10)}' > "ReadLenghts/all_mapped_read_lengths_barcode${sample_num}.txt"
 done
 
+###----------------------------------------------- make histograms of the readlengths 
+mkdir -p "${WORKDIR}/ReadLenghts/Histogram" 
 
+for ((i=1; i<=num_samples; i++))
+do
+    sample_num=$(printf "%02d" "$i")
+    python /kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Scripts/generate_read_lengths_histograms.py
+done
 ###----------------------------------------------- running WisecondorX to study CNVs (generates plots and BED files)
 export WISECONDORREF=${WISECONDORREF}
 mkdir -p "${WORKDIR}/WisecondorX" 
