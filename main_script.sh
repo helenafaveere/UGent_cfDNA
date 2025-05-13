@@ -228,5 +228,5 @@ mkdir -p "${WORKDIR}/QDNAseq"
 for ((i=1; i<=num_samples; i++))
 do
     sample_num=$(printf "%02d" "$i")
-    Rscript /kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Scripts/GRCh38_VisualisationScript.R
+    Rscript /kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Scripts/GRCh38_VisualisationScript.R "$WORKDIR" "$sample_num"
 done
