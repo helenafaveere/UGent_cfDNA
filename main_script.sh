@@ -14,29 +14,20 @@
 
 ###------------------------------------------------- module loading
 module purge
-#module unload GCC/13.2.0
-#module unload GCCcore/13.2.0
-#module unload zlib/1.2.13-GCCcore-13.2.0
-#module unload binutils/2.40-GCCcore-13.2.0
 module load GCCcore/12.3.0
 module load GCC/12.3.0
 module load SAMtools/1.18-GCC-12.3.0
 module load pod5-file-format/0.3.10-foss-2023a
 module load minimap2/2.26-GCCcore-12.3.0
-export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/ONT_env/bin:${PATH} 
-#Add path to dorado, pycoqc, modkit and wisecondorX environment, all in the same file!!
 
-export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/ONT_env/dorado-0.8.2-linux-x64/bin:${PATH} #dorado installation
-#export PATH=/scratch/gent/vo/001/gvo00115/vsc45900/dorado-0.4.0-linux-x64/bin:${PATH} # Add path to dorado installation
-#export PATH=/scratch/gent/vo/001/gvo00115/vsc45900/miniforge3/bin:${PATH} # Set this to the right path to your installation of pycoqc
-#export PATH=/scratch/gent/vo/001/gvo00115/vsc45900/miniforge3/envs/modkit/bin:${PATH} # Add the path to your modkit installation
-#CONDA_ENV_NAME=wisecodorXv1.2.5 #the name of your wisecondorX environment
+export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/dorado-0.8.2-linux-x64/bin:${PATH} # Add path to your Dorado installation
+export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/miniforge3/envs/pycoqc_env/bin:${PATH} # Add path to your pycoQC installation
+export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/miniforge3/envs/modkit_env/bin:${PATH} # Add path to your modkit installation
+export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/Rlibs/bin:${PATH} # Add path to your R environment
+export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/miniforge3/envs/python_env/bin:${PATH} # Add path to your python environment
+export PATH=/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/miniforge3/envs/wisecondorx_env/bin:${PATH} # Add path to your WisecondorX installation
 
-conda activate /kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/ONT_env/ #activate wisecondorx environment
-# better than just given a name to wisecondorX environment
 ###------------------------------------------------- flag definition
-
-
 # Check for provided options
 while getopts "p:t:w:n:r:k:c:W:" flag; do
     case "${flag}" in
@@ -53,8 +44,8 @@ done
 
 #default values
 DEFAULT_KIT_NAME="SQK-NBD114-24"
-DEFAULT_CONFIG="dna_r10.4.1_e8.2_400bps_hac@v5.0.0"
-DEFAULT_WISECONDORREF="/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/WisecondorX_ref/LQB.GRCh38.100kb.npz"
+DEFAULT_CONFIG="dna_r10.4.1_e8.2_400bps_sup@v5.0.0"
+DEFAULT_WISECONDORREF="/kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Tools/WisecondorX_ref/LQB.GRCh38.100kb.npz" # Change to the location of your WisecondorX reference
 
 if [[ -z "$KIT_NAME" ]]; then
     KIT_NAME="$DEFAULT_KIT_NAME"
@@ -85,9 +76,7 @@ else
     exit 1
 fi
 
-
 ###----------------------------------------------- exporting all variables to make them available inside srun
-
 export READSDIR=${READSDIR}
 export CONFIG=${CONFIG}
 export batch_size=${batch_size}
@@ -109,7 +98,6 @@ chunk_size=10000
 dorado download --model ${CONFIG}
 
 ###--------------------------------------------- simplex basecalling (background process)
-
 srun --ntasks=1 --exclusive bash -c '
     echo "start basecalling" &&
     echo ${CONFIG} &&
@@ -117,7 +105,7 @@ srun --ntasks=1 --exclusive bash -c '
     echo ${WORKDIR}/${CONFIG} &&
     echo ${READSDIR} &&
     dorado basecaller \
-        --device "cuda:0,1" \
+        --device "cuda:0,1,2,3" \
         --batchsize ${batch_size} \
         --chunksize ${chunk_size} \
         --recursive \
@@ -125,7 +113,7 @@ srun --ntasks=1 --exclusive bash -c '
         --verbose \
         ${WORKDIR}/${CONFIG} \
         ${READSDIR} > basecalling/simplex_all_barcodes.bam &&
-    dorado demux --kit-name "${KIT_NAME}" --output-dir "${WORKDIR}/basecalling/demux" basecalling/simplex_all_barcodes.bam &&
+    dorado demux --output-dir "${WORKDIR}/basecalling/demux" --no-classify basecalling/simplex_all_barcodes.bam &&
     for ((i=1; i<=num_samples; i++)); do
         sample_num=$(printf "%02d" "$i")
         dorado summary -v "basecalling/demux/5b6469e0391acf348cd89728e70975aabd01996f_${KIT_NAME}_barcode${sample_num}.bam" > "basecalling/sequencing_summary_simplex_barcode${sample_num}.txt" 
@@ -133,10 +121,9 @@ srun --ntasks=1 --exclusive bash -c '
 ' &
 
 ###--------------------------------------------- methylation analysis (background process)
-
 srun --ntasks=1 --exclusive bash -c '
     dorado basecaller \
-        --device "cuda:0,1" \
+        --device "cuda:0,1,2,3" \
         --batchsize "${batch_size}" \
         --chunksize "${chunk_size}" \
         --modified-bases 5mCG_5hmCG \
@@ -145,7 +132,7 @@ srun --ntasks=1 --exclusive bash -c '
         --verbose \
         "${WORKDIR}/${CONFIG}" \
         "${READSDIR}" > methylation/methylation_all_barcodes.bam &&
-    dorado demux --kit-name "${KIT_NAME}" --output-dir "${WORKDIR}/methylation/demux" methylation/methylation_all_barcodes.bam &&
+    dorado demux --output-dir "${WORKDIR}/methylation/demux" --no-classify methylation/methylation_all_barcodes.bam &&
     for ((i=1; i<=num_samples; i++)); do
         sample_num=$(printf "%02d" "$i")
         dorado summary -v "methylation/demux/5b6469e0391acf348cd89728e70975aabd01996f_${KIT_NAME}_barcode${sample_num}.bam" > "methylation/sequencing_summary_methylation_barcode${sample_num}.txt"
@@ -155,11 +142,9 @@ srun --ntasks=1 --exclusive bash -c '
 wait
 
 ###------------------------------------------------ settings for basecalling alignment
-
 export REF=${REF}
 
 ###--------------------------------------------- alignment and QC for basecalling
-
 for ((i=1; i<=num_samples; i++)); do
     sample_num=$(printf "%02d" "$i")
     
@@ -173,9 +158,9 @@ for ((i=1; i<=num_samples; i++)); do
 done
 
 ###------------------------------------------------ settings for methylation alignment
+export REF=${REF}
 
 ###--------------------------------------------- alignment for methylation analysis
-
 for ((i=1; i<=num_samples; i++))
 do
     sample_num=$(printf "%02d" "$i")
@@ -186,7 +171,6 @@ do
 done
 
 ###--------------------------------------------- methylation QC
-
 for ((i=1; i<=num_samples; i++))
 do
     sample_num=$(printf "%02d" "$i")
@@ -211,8 +195,6 @@ done
 
 
 ###----------------------------------------------- running WisecondorX to study CNVs (generates plots and BED files)
- # conda activate $CONDA_ENV_NAME #activate wisecondorx environment # now at the top
-
 export WISECONDORREF=${WISECONDORREF}
 mkdir -p "${WORKDIR}/WisecondorX" 
 
