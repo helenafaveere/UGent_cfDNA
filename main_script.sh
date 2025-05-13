@@ -203,6 +203,7 @@ do
     sample_num=$(printf "%02d" "$i")
     python /kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Scripts/generate_read_lengths_histograms.py
 done
+
 ###----------------------------------------------- running WisecondorX to study CNVs (generates plots and BED files)
 export WISECONDORREF=${WISECONDORREF}
 mkdir -p "${WORKDIR}/WisecondorX" 
@@ -219,4 +220,13 @@ do
     
     mv barcode${sample_num}* "${WORKDIR}/WisecondorX/${output_folder}/"
 
+done
+
+###----------------------------------------------- running QDNAseq to study CNVs
+mkdir -p "${WORKDIR}/QDNAseq" 
+
+for ((i=1; i<=num_samples; i++))
+do
+    sample_num=$(printf "%02d" "$i")
+    Rscript /kyukon/data/gent/shared/001/gvo00115/ONT_cfDNA/Scripts/GRCh38_VisualisationScript.R
 done
